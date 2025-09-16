@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Órdenes de Trabajo</title>
+  <style>
+    :root{--bg:#f7f7fb;--card:#fff;--text:#0f172a;--muted:#64748b;--primary:#111827;--br:16px;--shadow:0 8px 24px rgba(15,23,42,.06)}
+    *{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;background:var(--bg);color:var(--text)}
+    .container{max-width:1200px;margin:0 auto;padding:16px}
+    .header{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.8);backdrop-filter:saturate(180%) blur(6px);border-bottom:1px solid #e5e7eb}
+    .header-inner{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 16px;flex-wrap:wrap}
+    .logo{display:flex;align-items:center;gap:10px} .dot{width:28px;height:28px;border-radius:14px;background:var(--primary)}
+    h1{font-size:16px;margin:0}
+    .btn{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:12px;border:1px solid #e5e7eb;background:#fff;color:var(--text);cursor:pointer}
+    .btn.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+    .btn.danger{color:#b91c1c;border-color:#fca5a5}
+    .tabs{display:flex;gap:8px}
+    .tab{padding:8px 12px;border-radius:999px;border:1px solid #e5e7eb;background:#fff;cursor:pointer}
+    .tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+    .card{background:var(--card);border-radius:var(--br);box-shadow:var(--shadow);padding:16px;margin-top:16px}
+    .search{display:flex;align-items:center;gap:8px;border:1px solid #e5e7eb;border-radius:12px;padding:8px 12px;margin-bottom:10px}
+    .search input{border:none;outline:none;width:100%} .muted{color:var(--muted);font-size:12px}
+    .table-wrap{overflow:auto;max-height:70vh} table{width:100%;border-collapse:separate;border-spacing:0 8px}
+    th{text-align:left;font-size:12px;color:var(--muted);padding:0 8px;position:sticky;top:0;background:#fff}
+    td{background:#f3f4f6;padding:8px;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb} td:first-child{border-left:1px solid #e5e7eb;border-radius:10px 0 0 10px} td:last-child{border-right:1px solid #e5e7eb;border-radius:0 10px 10px 0}
+    .link{color:#1d4ed8;cursor:pointer;text-decoration:underline}
+    .pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:11px;border:1px solid #c7d2fe}
+    .small{font-size:12px}
+    .hidden{display:none}
+    .editor{display:flex;gap:8px;flex-wrap:wrap}
+    .checkbox{width:16px;height:16px}
+    th.sel, td.sel{width:34px;text-align:center}
+    tr:hover td{filter:brightness(0.98)}
+  </style>
+</head>
+<body>
+<div class="header">
+  <div class="header-inner container">
+    <div class="logo"><img src="perfekt_logo.png" alt="Logo Perfekt" style="height:28px"><h1>Órdenes de Trabajo</h1></div>
+    <div class="tabs">
+      <div class="tab active" data-tab="listado">Listado</div>
+      <div class="tab" data-tab="resumen">Resumen</div>
+    </div>
+    <div class="editor">
+      <button class="btn primary" id="btnAdd">Agregar OT</button>
+      <button class="btn danger" id="btnDel">Eliminar seleccionadas</button>
+      <button class="btn" id="btnRefresh">Refrescar</button>
+      <button class="btn" id="exportCSV">Exportar Excel</button>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <!-- LISTADO -->
+  <div id="panel_listado" class="card">
+    <div class="search">
+      <span>🔎</span><input id="q_listado" placeholder="Escribir ID">
+    </div>
+    <div class="table-wrap">
+      <table id="tbl_full">
+        <thead>
+          <tr>
+            <th class="sel"><input type="checkbox" id="sel_all_listado"></th>
+            <th>ID</th><th>Orden</th><th>Trabajo</th><th>%</th><th>Inicio</th><th>Días</th><th>Finalización</th><th>Entrega</th><th>Responsable</th><th>Observaciones</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- RESUMEN -->
+  <div id="panel_resumen" class="card hidden">
+    <div class="search">
+      <span>🔎</span><input id="q_resumen" placeholder="Escribir ID">
+    </div>
+    <div class="table-wrap">
+      <table id="tbl_res">
+        <thead>
+          <tr>
+            <th class="sel"><input type="checkbox" id="sel_all_resumen"></th>
+            <th>ID</th><th>Trabajo</th><th>%</th><th>Finalización</th><th>Entrega</th><th>Responsable</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===== Datos base e índices ===== */
+const DATA = [{"id":"1","orden":"PFKT-0053","trabajo":"LONA PUBLICITARIA","avance":0.0,"inicio":"2025-06-02","dias_trabajo":1,"finalizacion":"2025-06-03","entrega":"","responsable":"ESTUARDO","observaciones":"TERMIANDO Y ENTREGADO"}];
+const STORAGE_KEY='junio_rows_seed';
+
+/* ===== Utils ===== */
+function esc(s){return String(s??'').replace(/[&<>]/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;'})[m])}
+function openDetail(id){ window.open('ot_detalle.html#id=' + encodeURIComponent(id), '_blank'); }
+function saveData(rows){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(rows)); }catch(e){} }
+function loadData(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)) || DATA; }catch(e){ return DATA; } }
+
+
+function purgeDetailFor(otId) {
+  const id = String(otId);
+  const knownDetailKeys = [
+    'ot_costs_detail_v1',
+    'ot_costs_detail_v2',
+    'ot_costs_detail_v3',
+    'ot_costs_detail_v4',  
+    'ot_costs_detail_v5',
+    'ot_costs_detail_v6'
+  ];
+
+
+  for (const key of knownDetailKeys) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const val = JSON.parse(raw);
+
+      if (Array.isArray(val)) {
+        const next = val.filter(item => String(item?.id) !== id);
+        if (next.length !== val.length) localStorage.setItem(key, JSON.stringify(next));
+      } else if (val && typeof val === 'object') {
+        if (id in val) {
+          delete val[id];
+          localStorage.setItem(key, JSON.stringify(val));
+        }
+      }
+    } catch (_) {}
+  }
+
+  // Barrido defensivo por si hay futuras versiones
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k) continue;
+      if (/^ot_costs_detail_v\d+$/i.test(k)) {
+        const raw = localStorage.getItem(k);
+        if (!raw) continue;
+        const val = JSON.parse(raw);
+
+        if (Array.isArray(val)) {
+          const next = val.filter(item => String(item?.id) !== id);
+          if (next.length !== val.length) localStorage.setItem(k, JSON.stringify(next));
+        } else if (val && typeof val === 'object') {
+          if (id in val) {
+            delete val[id];
+            localStorage.setItem(k, JSON.stringify(val));
+          }
+        }
+      }
+    }
+  } catch (_) {}
+
+  // Aviso a otras pestañas (por si Detalle sigue abierto)
+  try { localStorage.setItem('__ping__', Date.now().toString()); } catch (_) {}
+}
+
+/* ===== Estado ===== */
+let rows = loadData();
+
+/* ===== React a cambios en otras pestañas ===== */
+window.addEventListener('storage', (e)=>{
+  if (e.key===STORAGE_KEY){ rows = loadData(); render(); }
+});
+
+/* ===== Tabs ===== */
+document.querySelectorAll('.tab').forEach(el=> el.onclick = ()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  const tab = el.dataset.tab;
+  document.getElementById('panel_listado').classList.toggle('hidden', tab!=='listado');
+  document.getElementById('panel_resumen').classList.toggle('hidden', tab!=='resumen');
+  render();
+});
+
+/* ===== Renderers ===== */
+function renderListado(){
+  const q = (document.querySelector('#q_listado').value||'').toLowerCase();
+  const match = r => !q || ['id','orden','trabajo','responsable','observaciones'].some(k => String(r[k]||'').toLowerCase().includes(q));
+  const tbody = document.querySelector('#tbl_full tbody'); tbody.innerHTML='';
+  rows.filter(match).forEach(r=>{
+    const pct = Number(r.avance||0)*100;
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td class="sel"><input class="checkbox sel_row" type="checkbox" data-id="'+esc(r.id)+'"></td>' +
+                   '<td>'+esc(r.id)+'</td><td>'+esc(r.orden||"")+'</td><td class="link">'+esc(r.trabajo||"(sin trabajo)")+'</td><td><span class="pill">'+pct.toFixed(0)+'</span></td><td>'+esc(r.inicio||"")+'</td><td>'+esc(r.dias_trabajo??"")+'</td><td>'+esc(r.finalizacion||"")+'</td><td>'+esc(r.entrega||"")+'</td><td>'+esc(r.responsable||"")+'</td><td>'+esc(r.observaciones||"")+'</td>';
+    tr.querySelector('td.link').onclick = (e)=>{ e.stopPropagation(); openDetail(r.id); };
+    tbody.appendChild(tr);
+  });
+  const selAll = document.getElementById('sel_all_listado');
+  selAll.checked = false;
+  selAll.onchange = ()=>{ tbody.querySelectorAll('.sel_row').forEach(cb => cb.checked = selAll.checked); };
+}
+
+function renderResumen(){
+  const q = (document.querySelector('#q_resumen').value||'').toLowerCase();
+  const match = r => !q || ['id','trabajo','responsable'].some(k => String(r[k]||'').toLowerCase().includes(q));
+  const tbody = document.querySelector('#tbl_res tbody'); tbody.innerHTML='';
+  rows.filter(match).forEach(r=>{
+    const pct = Number(r.avance||0)*100;
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td class="sel"><input class="checkbox sel_row" type="checkbox" data-id="'+esc(r.id)+'"></td>' +
+                   '<td>'+esc(r.id)+'</td><td class="link">'+esc(r.trabajo||"(sin trabajo)")+'</td><td><span class="pill">'+pct.toFixed(0)+'</span></td><td>'+esc(r.finalizacion||"")+'</td><td>'+esc(r.entrega||"")+'</td><td>'+esc(r.responsable||"")+'</td>';
+    tr.querySelector('td.link').onclick = (e)=>{ e.stopPropagation(); openDetail(r.id); };
+    tbody.appendChild(tr);
+  });
+  const selAll = document.getElementById('sel_all_resumen');
+  selAll.checked = false;
+  selAll.onchange = ()=>{ tbody.querySelectorAll('.sel_row').forEach(cb => cb.checked = selAll.checked); };
+}
+
+function render(){ renderListado(); renderResumen(); saveData(rows); }
+document.querySelector('#q_listado').oninput = renderListado;
+document.querySelector('#q_resumen').oninput = renderResumen;
+
+/* ===== Editor actions ===== */
+document.getElementById('btnAdd').onclick = ()=>{
+  const ids = rows.map(r=> parseInt(String(r.id).replace(/[^0-9]/g,'')) ).filter(n=>!isNaN(n));
+  const nextId = (ids.length? Math.max.apply(null, ids)+1 : 1);
+  const today = new Date().toISOString().slice(0,10);
+  rows.unshift({ id: String(nextId), orden: '', trabajo: '(nuevo)', avance: 0, inicio: today, dias_trabajo: null, finalizacion: '', entrega: '', responsable: '', observaciones: '' });
+  render();
+};
+
+document.getElementById('btnDel').onclick = ()=>{
+  const activeTab = document.querySelector('.tab.active').dataset.tab;
+  const tbody = activeTab==='listado' ? document.querySelector('#tbl_full tbody') : document.querySelector('#tbl_res tbody');
+  const selected = Array.from(tbody.querySelectorAll('.sel_row:checked')).map(cb => cb.getAttribute('data-id'));
+  if (!selected.length){ alert('Seleccioná al menos una OT para eliminar.'); return; }
+  if (!confirm('¿Eliminar '+selected.length+' OT(s)?')) return;
+
+  // 1) Quita del índice
+  rows = rows.filter(r => !selected.includes(String(r.id)));
+  saveData(rows);
+
+  // 2) PURGA también los DETALLES de cada OT seleccionada (NUEVO)
+  selected.forEach(id => purgeDetailFor(id));
+
+  // 3) Aviso y refresco
+  try { localStorage.setItem('__ping__', Date.now().toString()); } catch (e) {}
+  render();
+};
+
+document.getElementById('btnRefresh').onclick = ()=>{ rows = loadData(); render(); };
+
+/* ===== Exportar a CSV ===== */
+function csvEscape(value){
+  const s = String(value ?? '').replace(/\r?\n/g, ' ');
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+document.getElementById('exportCSV').onclick = ()=>{
+  const SEP = ';'; // Excel ES-LA/España
+  const header=['ID','Orden','Trabajo','%','Inicio','Días','Finalización','Entrega','Responsable','Observaciones'];
+  const lines = [];
+  lines.push(header.map(csvEscape).join(SEP));
+  rows.forEach(r=>{
+    const rowArr=[
+      r.id,
+      r.orden,
+      r.trabajo,
+      Math.round(Number(r.avance||0)*100), // 0..100
+      r.inicio,
+      r.dias_trabajo,
+      r.finalizacion,
+      r.entrega,
+      r.responsable,
+      r.observaciones
+    ].map(csvEscape);
+    lines.push(rowArr.join(SEP));
+  });
+  const csvContent = '\uFEFF' + lines.join('\r\n'); // BOM + CRLF
+  const blob = new Blob([csvContent], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download='junio_ot.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+/* ===== Initial paint ===== */
+render();
+</script>
+
+</body>
+</html>

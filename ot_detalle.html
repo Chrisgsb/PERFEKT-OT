@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Detalle OT — Sincroniza con Índice (Mod v3.1)</title>
+<style>
+  :root{--bg:#f7f7fb;--card:#fff;--text:#0f172a;--muted:#64748b;--primary:#111827;--br:16px;--shadow:0 8px 24px rgba(15,23,42,.06)}
+  *{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;background:var(--bg);color:var(--text)}
+  .container{max-width:1100px;margin:0 auto;padding:16px}
+  .header{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.8);backdrop-filter:saturate(180%) blur(6px);border-bottom:1px solid #e5e7eb}
+  .header-inner{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 16px}
+  .logo{display:flex;align-items:center;gap:10px}.dot{width:28px;height:28px;border-radius:14px;background:var(--primary)}
+  h1{font-size:16px;margin:0}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:12px;border:1px solid #e5e7eb;background:#fff;color:var(--text);cursor:pointer}
+  .btn.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+  .card{background:var(--card);border-radius:var(--br);box-shadow:var(--shadow);padding:16px}
+  .tabs{display:flex;gap:8px;margin:12px 0}
+  .tab{padding:8px 12px;border-radius:999px;border:1px solid #e5e7eb;background:#fff;cursor:pointer}
+  .tab.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+  .field input,.field textarea{width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:12px;outline:none}
+  table{width:100%;border-collapse:separate;border-spacing:0 8px}
+  th{text-align:left;font-size:12px;color:var(--muted);padding:0 8px}
+  td{background:#f3f4f6;padding:8px;border-top:1px solid #e5e7eb;border-bottom:1px solid #e5e7eb}
+  td:first-child{border-left:1px solid #e5e7eb;border-radius:10px 0 0 10px}
+  td:last-child{border-right:1px solid #e5e7eb;border-radius:0 10px 10px 0}
+  .right{text-align:right}
+  .pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:11px;border:1px solid #c7d2fe}
+  .small{font-size:12px}
+  .grid-img{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-top:8px}
+  .thumb{position:relative;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;background:#fff;min-height:100px}
+  .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .thumb .x{position:absolute;top:6px;right:6px;background:#fff;border:1px solid #e5e7eb;border-radius:999px;padding:2px 6px;cursor:pointer}
+  .mono{font-variant-numeric:tabular-nums}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#111827;color:#fff;padding:10px 14px;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.15);opacity:0;pointer-events:none;transition:opacity .25s}
+  .toast.show{opacity:1}
+  .muted{color:var(--muted)}
+  .section-title{display:flex;align-items:center;justify-content:space-between;margin:10px 0 6px}
+  .product{border:1px dashed #e5e7eb;border-radius:12px;padding:12px;margin-bottom:14px;background:#fff}
+  /* Modal */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.3);display:none;align-items:center;justify-content:center;padding:16px}
+  .modal .box{background:#fff;border-radius:16px;box-shadow:var(--shadow);max-width:720px;width:100%;padding:16px}
+  .modal .box h3{margin:0 0 8px 0}
+  .modal .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-inner container">
+    <div class="logo"><img src="perfekt_logo.png" alt="Logo Perfekt" style="height:28px"><h1 id="title">Detalle OT </h1></div>
+    <div class="actions">
+      <button class="btn primary" id="btnSave">Guardar</button>
+      <button class="btn" id="btnSync">Sincronizar con índice</button>
+      <button class="btn" onclick="(function(){ const id=new URLSearchParams(location.hash.slice(1)).get('id')||''; window.open('ot_print_cliente.html#id='+encodeURIComponent(id), '_blank'); })()">Imprimir</button>
+      <button class="btn" onclick="window.close()">Cerrar pestaña</button>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <div><strong>ID:</strong> <span id="oid"></span> · <strong>Orden:</strong> <span id="oord"></span> · <strong>Trabajo:</strong> <span id="ojob"></span></div>
+      <div class="pill small">Avance: <span id="opct"></span>%</div>
+    </div>
+
+    <div class="tabs">
+      <div class="tab active" data-tab="diseno">Diseño</div>
+      <div class="tab" data-tab="cotizacion">Cotización</div>
+    </div>
+
+    <!-- DISEÑO -->
+    <div id="tab_diseno">
+      <div class="row">
+        <div class="field"><label>Cliente</label><input id="d_cliente" /></div>
+        <div class="field"><label>Ubicación</label><input id="d_ubicacion" /></div>
+      </div>
+
+      <div class="section-title">
+        <div style="font-weight:600">Productos</div>
+        <div class="actions">
+          <button class="btn" id="p_add">Agregar producto</button>
+          <button class="btn" id="p_clear">Vaciar productos</button>
+        </div>
+      </div>
+
+      <div id="p_list"></div>
+    </div>
+
+    <!-- COTIZACIÓN -->
+    <div id="tab_cotizacion" style="display:none">
+      <div class="row3">
+        <div class="field"><label>Fecha de inicio</label><input id="q_inicio" type="date"></div>
+        <div class="field"><label>Fecha de fin</label><input id="q_fin" type="date"></div>
+        <div class="field"><label>Días de vigencia</label><input id="q_vigencia" type="number" step="1" min="0"></div>
+      </div>
+      <div class="row3">
+        <div class="field"><label>Método de pago</label><input id="q_metodo"></div>
+        <div class="field"><label>Referencia</label><input id="q_ref"></div>
+        <div class="field"><label>Cliente</label><input id="q_cliente"></div>
+      </div>
+      <div class="row3">
+        <div class="field"><label>Encargado</label><input id="q_encargado"></div>
+        <div class="field"><label>Mano de obra (Q)</label><input id="q_labor" type="number" step="0.01"></div>
+        <div class="field"><label>Utilidad (%)</label><input id="q_margin" type="number" step="0.1" min="0"></div>
+      </div>
+
+      <div class="section-title">
+        <div style="font-weight:600">Detalle de cotización</div>
+        <div class="actions">
+          <button class="btn" id="q_importar">Importar desde Diseño</button>
+          <button class="btn" id="q_add">Agregar línea</button>
+          <button class="btn" id="q_clear">Vaciar</button>
+        </div>
+      </div>
+
+      <div style="overflow:auto">
+        <table>
+          <thead><tr>
+            <th>Trabajo</th>
+            <th style="width:110px">Cantidad</th>
+            <th style="width:130px">N.º de artículo</th>
+            <th>Descripción</th>
+            <th style="width:160px">Precio por unidad</th>
+            <th style="width:140px">Descuento</th>
+            <th style="width:140px">Total de la línea</th>
+            <th style="width:60px"></th>
+          </tr></thead>
+          <tbody id="q_body"></tbody>
+        </table>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label>Imágenes </label>
+          <div class="actions" style="margin-bottom:8px">
+            <input id="q_img_file" type="file" accept="image/*" multiple>
+            <button class="btn" id="q_img_clear">Quitar todas</button>
+          </div>
+          <div class="grid-img" id="q_img_grid"></div>
+        </div>
+        <div>
+          <div class="card" style="padding:12px">
+            <div class="mono"><strong>Subtotal bruto:</strong> <span id="q_sub_bruto">Q0.00</span></div>
+            <div class="mono"><strong>Descuento total:</strong> <span id="q_desc_total">Q0.00</span></div>
+            <div class="mono"><strong>Mano de obra:</strong> <span id="q_labor_view">Q0.00</span></div>
+            <div class="mono"><strong>Utilidad:</strong> <span id="q_margin_view">Q0.00</span> <span class="muted small" id="q_margin_pct_view">(0%)</span></div>
+            <div style="border-top:1px dashed #e5e7eb;margin:6px 0"></div>
+            <div class="mono"><strong>Total:</strong> <span id="q_total">Q0.00</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast">Guardado</div>
+
+<!-- Modal de sincronización -->
+<div id="syncModal" class="modal" aria-hidden="true">
+  <div class="box">
+    <h3>Enviar datos al índice</h3>
+    <div class="grid">
+      <div class="field"><label>ID</label><input id="m_id"></div>
+      <div class="field"><label>Orden</label><input id="m_orden"></div>
+      <div class="field"><label>Trabajo</label><input id="m_trabajo"></div>
+      <div class="field"><label>% avance</label><input id="m_pct" type="number" min="0" max="100" step="1"></div>
+      <div class="field"><label>Inicio</label><input id="m_inicio" type="date"></div>
+      <div class="field"><label>Días de trabajo</label><input id="m_dias" type="number" step="1" min="0"></div>
+      <div class="field"><label>Finalización</label><input id="m_final" type="date"></div>
+      <div class="field"><label>Entrega</label><input id="m_entrega" type="date"></div>
+      <div class="field"><label>Responsable</label><input id="m_resp"></div>
+    </div>
+    <div class="field" style="margin-top:8px"><label>Observaciones</label><input id="m_obs"></div>
+    <div class="actions" style="margin-top:12px;justify-content:flex-end">
+      <button class="btn" id="m_cancel">Cancelar</button>
+      <button class="btn primary" id="m_save">Guardar en índice</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== Base & Persistencia =====
+const STORAGE_KEY_IDX='junio_rows_seed';
+const LS_KEY='ot_costs_detail_v4';
+function loadDetail(id){ try{ const all = JSON.parse(localStorage.getItem(LS_KEY)) || {}; return all[id] || {}; }catch(e){ return {}; } }
+function saveDetail(id, obj){ const all = (function(){ try{return JSON.parse(localStorage.getItem(LS_KEY))||{};}catch(e){return {};} })(); all[id]=obj; localStorage.setItem(LS_KEY, JSON.stringify(all)); }
+function fmtQ(n){
+  const v = Number(n || 0);
+  return 'Q. ' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function num(v){ const n = parseFloat(String(v).replace(/[^0-9.-]/g,'')); return isNaN(n)?0:n; }
+function toast(msg='Guardado'){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 1200); }
+function addDays(iso, days){
+  if(!iso) return '';
+  const d = new Date(iso); if (isNaN(d)) return '';
+  d.setDate(d.getDate()+Number(days||0));
+  return d.toISOString().slice(0,10);
+}
+
+// ===== Header =====
+const params = new URLSearchParams(location.hash.slice(1));
+const oid = params.get('id') || '';
+const baseRows = (function(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY_IDX))||[] }catch(e){ return [] } })();
+const row = baseRows.find(r=> String(r.id)===String(oid)) || {id: oid, orden:'', trabajo:'', avance:0};
+document.getElementById('title').textContent = 'Detalle OT — ' + (row.trabajo||'Sin título');
+document.getElementById('oid').textContent = row.id||'';
+document.getElementById('oord').textContent = row.orden||'';
+document.getElementById('ojob').textContent = row.trabajo||'';
+document.getElementById('opct').textContent = (Number(row.avance||0)*100).toFixed(0);
+
+// ===== Estado por OT =====
+const defaultState = {
+  diseno: {cliente:'', ubicacion:'', productos:[]},
+  cotizacion: {inicio:'', fin:'', vigencia:'', metodo:'', referencia:'', cliente:'', encargado:'', labor:0, marginPct:0, items: [], images: [], autoFilled:false}
+};
+let state = Object.assign({}, defaultState, loadDetail(row.id));
+
+// ===== Tabs =====
+document.querySelectorAll('.tab').forEach(el=> el.onclick = ()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  el.classList.add('active');
+  ['diseno','cotizacion'].forEach(k=> document.getElementById('tab_'+k).style.display = (el.dataset.tab===k ? 'block':'none'));
+  if (el.dataset.tab==='cotizacion'){ maybeAutoFillFromDesign(); }
+});
+
+// ====== DISEÑO ======
+const dCliente = document.getElementById('d_cliente');
+const dUbic = document.getElementById('d_ubicacion');
+const pList = document.getElementById('p_list');
+const pAdd = document.getElementById('p_add');
+const pClear = document.getElementById('p_clear');
+
+dCliente.value = state.diseno.cliente || '';
+dUbic.value = state.diseno.ubicacion || '';
+dCliente.oninput = e=>{ state.diseno.cliente = e.target.value; saveDetail(row.id, state); };
+dUbic.oninput = e=>{ state.diseno.ubicacion = e.target.value; saveDetail(row.id, state); };
+
+pAdd.onclick = ()=>{ 
+  state.diseno.productos.push(emptyProduct()); 
+  saveDetail(row.id, state); 
+  renderProducts();
+};
+pClear.onclick = ()=>{
+  if (confirm('¿Vaciar todos los productos?')){
+    state.diseno.productos = [];
+    saveDetail(row.id,state);
+    renderProducts();
+  }
+};
+
+function emptyProduct(){
+  return {nombre:'', medidas:'', encargado:'', images:[], materiales:[]};
+}
+function productMatSubtotal(prod){
+  return (prod.materiales||[]).reduce((s,it)=> s + num(it.qty)*num(it.unitPrice), 0);
+}
+
+function renderProducts(){
+  pList.innerHTML = '';
+  state.diseno.productos.forEach((prod, idx)=>{
+    const div = document.createElement('div');
+    div.className = 'product';
+    div.innerHTML = `
+      <div class="section-title">
+        <div><strong>Producto ${idx+1}</strong></div>
+        <div class="actions">
+          <button class="btn" data-del="${idx}">Eliminar</button>
+        </div>
+      </div>
+      <div class="row3">
+        <div class="field"><label>Nombre</label><input data-k="nombre" data-i="${idx}" value="${prod.nombre||''}"></div>
+        <div class="field"><label>Medidas</label><input data-k="medidas" data-i="${idx}" value="${prod.medidas||''}"></div>
+        <div class="field"><label>Encargado</label><input data-k="encargado" data-i="${idx}" value="${prod.encargado||''}"></div>
+      </div>
+      <div class="field">
+        <label>Imágenes del producto</label>
+        <div class="actions" style="margin-bottom:8px">
+          <input type="file" accept="image/*" multiple data-file="${idx}">
+          <button class="btn" data-clearimg="${idx}">Quitar todas</button>
+        </div>
+        <div class="grid-img" id="p_imgs_${idx}"></div>
+      </div>
+      <div class="section-title">
+        <div style="font-weight:600">Materiales</div>
+        <div class="actions">
+          <button class="btn" data-addmat="${idx}">Agregar material</button>
+          <button class="btn" data-clearmat="${idx}">Vaciar</button>
+        </div>
+      </div>
+      <div style="overflow:auto">
+        <table>
+          <thead><tr><th>Material</th><th style="width:120px">Cantidad</th><th style="width:120px">Unidad/Nota</th><th style="width:140px">P. Unitario</th><th style="width:140px">Subtotal</th><th style="width:60px"></th></tr></thead>
+          <tbody id="mat_body_${idx}"></tbody>
+        </table>
+      </div>
+    `;
+    pList.appendChild(div);
+
+    // Eliminar producto
+    div.querySelector(`[data-del="${idx}"]`).onclick = ()=>{
+      state.diseno.productos.splice(idx,1);
+      saveDetail(row.id,state);
+      renderProducts();
+    };
+
+    // Inputs básicos
+    div.querySelectorAll('input[data-k]').forEach(inp=>{
+      inp.oninput = (e)=>{
+        const i = Number(e.target.getAttribute('data-i'));
+        const k = e.target.getAttribute('data-k');
+        state.diseno.productos[i][k]=e.target.value;
+        saveDetail(row.id,state);
+      };
+    });
+
+    // Imágenes
+    const grid = div.querySelector('#p_imgs_'+idx);
+    function renderImgs(){
+      grid.innerHTML='';
+      (state.diseno.productos[idx].images||[]).forEach((src, j)=>{
+        const wrap = document.createElement('div'); wrap.className='thumb';
+        const img = new Image(); img.src = src; wrap.appendChild(img);
+        const x = document.createElement('div'); x.className='x'; x.textContent='✕';
+        x.onclick = ()=>{ state.diseno.productos[idx].images.splice(j,1); saveDetail(row.id,state); renderImgs(); };
+        wrap.appendChild(x);
+        grid.appendChild(wrap);
+      });
+    }
+    renderImgs();
+
+    div.querySelector(`[data-file="${idx}"]`).onchange = async (e)=>{
+      const files = Array.from(e.target.files||[]);
+      for (const file of files){
+        await new Promise((res)=>{
+          const reader = new FileReader();
+          reader.onload = ()=>{ (state.diseno.productos[idx].images||(state.diseno.productos[idx].images=[])).push(reader.result); res(); };
+          reader.readAsDataURL(file);
+        });
+      }
+      saveDetail(row.id,state);
+      renderImgs();
+      e.target.value='';
+    };
+    div.querySelector(`[data-clearimg="${idx}"]`).onclick = ()=>{
+      state.diseno.productos[idx].images=[]; saveDetail(row.id,state); renderImgs();
+    };
+
+    // Materiales
+    buildMatTable(idx);
+
+    // Botones de materiales
+    div.querySelector(`[data-addmat="${idx}"]`).onclick = ()=>{
+      (state.diseno.productos[idx].materiales||(state.diseno.productos[idx].materiales=[])).push({name:'', qty:1, unit:'', unitPrice:0});
+      saveDetail(row.id,state);
+      buildMatTable(idx);
+    };
+    div.querySelector(`[data-clearmat="${idx}"]`).onclick = ()=>{
+      if(confirm('¿Vaciar materiales de este producto?')){
+        state.diseno.productos[idx].materiales=[];
+        saveDetail(row.id,state);
+        buildMatTable(idx);
+      }
+    };
+  });
+}
+
+function buildMatTable(pIndex){
+  const tbody = document.getElementById('mat_body_'+pIndex);
+  tbody.innerHTML='';
+  (state.diseno.productos[pIndex].materiales||[]).forEach((it, j)=>{
+    const sub = num(it.qty)*num(it.unitPrice);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input value="${it.name||''}" data-p="${pIndex}" data-i="${j}" data-k="name"></td>
+      <td><input type="number" step="0.01" value="${it.qty||0}" data-p="${pIndex}" data-i="${j}" data-k="qty"></td>
+      <td><input value="${it.unit||''}" data-p="${pIndex}" data-i="${j}" data-k="unit"></td>
+      <td><input type="number" step="0.01" value="${it.unitPrice||0}" data-p="${pIndex}" data-i="${j}" data-k="unitPrice"></td>
+      <td class="right" data-sub="${pIndex}_${j}">${fmtQ(sub)}</td>
+      <td class="right"><button class="btn" data-delmat="${pIndex}_${j}">✕</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+  // Bind inputs
+  tbody.querySelectorAll('input').forEach(inp=>{
+    inp.oninput = (e)=>{
+      const p = Number(e.target.getAttribute('data-p'));
+      const i = Number(e.target.getAttribute('data-i'));
+      const k = e.target.getAttribute('data-k');
+      let v = e.target.value;
+      if (k==='qty' || k==='unitPrice') v = num(v);
+      state.diseno.productos[p].materiales[i][k]=v;
+      const it = state.diseno.productos[p].materiales[i];
+      const line = num(it.qty)*num(it.unitPrice);
+      const cell = tbody.querySelector(`td[data-sub="${p}_${i}"]`);
+      if (cell) cell.textContent = fmtQ(line);
+      saveDetail(row.id,state);
+    };
+  });
+  tbody.querySelectorAll('button[data-delmat]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const [p,i] = btn.getAttribute('data-delmat').split('_').map(Number);
+      state.diseno.productos[p].materiales.splice(i,1);
+      saveDetail(row.id,state);
+      buildMatTable(p);
+    };
+  });
+}
+
+renderProducts();
+
+// ====== COTIZACIÓN ======
+const cotMap = {q_inicio:'inicio', q_fin:'fin', q_vigencia:'vigencia', q_metodo:'metodo', q_ref:'referencia', q_cliente:'cliente', q_encargado:'encargado', q_labor:'labor', q_margin:'marginPct'};
+Object.keys(cotMap).forEach(id=>{
+  const el = document.getElementById(id);
+  el.value = state.cotizacion[cotMap[id]] || '';
+  el.oninput = (e)=>{ state.cotizacion[cotMap[id]] = e.target.value; saveDetail(row.id,state); updateCotTotals(); };
+});
+
+// fechas automáticas (cotización) — pero siempre editables
+const qInicio = document.getElementById('q_inicio');
+const qFin = document.getElementById('q_fin');
+const qVig = document.getElementById('q_vigencia');
+function recalcFinFromVig(){
+  if (qInicio.value && qVig.value !== ''){
+    const fin = addDays(qInicio.value, Number(qVig.value||0));
+    qFin.value = fin;
+    state.cotizacion.fin = fin;
+    saveDetail(row.id,state);
+  }
+}
+qInicio.onchange = recalcFinFromVig;
+qVig.oninput = recalcFinFromVig;
+
+const qBody = document.getElementById('q_body');
+function buildCotTable(){
+  qBody.innerHTML='';
+  (state.cotizacion.items||[]).forEach((it,idx)=>{
+    const bruto = num(it.cant)*num(it.pu);
+    const desc = num(it.desc);
+    const total = Math.max(0, bruto - desc);
+    const tr = document.createElement('tr'); tr.setAttribute('data-i', idx);
+    tr.innerHTML = '<td><input value="'+(it.trabajo||'')+'" data-k="trabajo" data-i="'+idx+'"></td>'+
+      '<td><input type="number" step="0.01" value="'+(it.cant||0)+'" data-k="cant" data-i="'+idx+'"></td>'+
+      '<td><input value="'+(it.numArt||'')+'" data-k="numArt" data-i="'+idx+'"></td>'+
+      '<td><input value="'+(it.descTxt||'')+'" data-k="descTxt" data-i="'+idx+'"></td>'+
+      '<td><input type="number" step="0.01" value="'+(it.pu||0)+'" data-k="pu" data-i="'+idx+'"></td>'+
+      '<td><input type="number" step="0.01" value="'+(it.desc||0)+'" data-k="desc" data-i="'+idx+'"></td>'+
+      '<td class="right" data-line="'+idx+'">'+fmtQ(total)+'</td>'+
+      '<td class="right"><button class="btn" data-del="'+idx+'">✕</button></td>';
+    qBody.appendChild(tr);
+  });
+  bindCotInputs();
+  updateCotTotals();
+}
+function updateCotTotals(){
+  const subBruto = (state.cotizacion.items||[]).reduce((s,it)=> s + num(it.cant)*num(it.pu), 0);
+  const descTotal = (state.cotizacion.items||[]).reduce((s,it)=> s + num(it.desc), 0);
+  const labor = num(state.cotizacion.labor||0);
+  const marginPct = num(state.cotizacion.marginPct||0)/100;
+  const base = Math.max(0, subBruto - descTotal) + labor;
+  const utilidad = ((base) / (1 - marginPct)) - base;
+  const total = base + utilidad;
+  document.getElementById('q_sub_bruto').textContent = fmtQ(subBruto);
+  document.getElementById('q_desc_total').textContent = fmtQ(descTotal);
+  document.getElementById('q_labor_view').textContent = fmtQ(labor);
+  document.getElementById('q_margin_view').textContent = fmtQ(utilidad);
+  document.getElementById('q_margin_pct_view').textContent = `(${(marginPct*100).toFixed(1)}%)`;
+  document.getElementById('q_total').textContent = fmtQ(total);
+}
+function bindCotInputs(){
+  qBody.querySelectorAll('input').forEach(inp=>{
+    inp.oninput = (e)=>{
+      const i = Number(e.target.getAttribute('data-i'));
+      const k = e.target.getAttribute('data-k');
+      let v = e.target.value;
+      if (['cant','pu','desc'].includes(k)) v = num(v);
+      state.cotizacion.items[i][k]=v;
+      const it = state.cotizacion.items[i];
+      const bruto = num(it.cant)*num(it.pu);
+      const total = Math.max(0, bruto - num(it.desc));
+      const cell = qBody.querySelector('td[data-line="'+i+'"]');
+      if (cell) cell.textContent = fmtQ(total);
+      saveDetail(row.id,state);
+      updateCotTotals();
+    };
+  });
+  qBody.querySelectorAll('button[data-del]').forEach(btn=>{
+    btn.onclick = ()=>{ const i=Number(btn.getAttribute('data-del')); state.cotizacion.items.splice(i,1); saveDetail(row.id,state); buildCotTable(); };
+  });
+}
+document.getElementById('q_add').onclick = ()=>{ (state.cotizacion.items||(state.cotizacion.items=[])).push({trabajo:'', cant:1, numArt:'', descTxt:'', pu:0, desc:0}); saveDetail(row.id,state); buildCotTable(); };
+document.getElementById('q_clear').onclick = ()=>{ if(confirm('¿Vaciar líneas?')){ state.cotizacion.items=[]; saveDetail(row.id,state); buildCotTable(); } };
+
+// ===== Importar desde Diseño =====
+// Ahora trae **todas** las imágenes de todos los productos.
+// - Si force = true (botón), las reemplaza por completo.
+// - Si es autollenado y no hay imágenes en cotización, también las pone todas.
+function importFromDesign(force=false){
+  const prods = state.diseno.productos||[];
+  if (!prods.length) return;
+  if (!force && (state.cotizacion.items||[]).length) return; // no pisar lo que ya editaste
+
+  state.cotizacion.items = prods.map(p=>{
+    const mats = (p.materiales||[]).reduce((s,it)=> s + num(it.qty)*num(it.unitPrice), 0);
+    return {
+      trabajo: p.nombre || 'Producto',
+      cant: 1,
+      numArt: '',
+      descTxt: [p.medidas?p.medidas:null, p.encargado?('Encargado: '+p.encargado):null].filter(Boolean).join(' · '),
+      pu: mats,
+      desc: 0
+    };
+  });
+
+  // *** NUEVO: tomar TODAS las imágenes de todos los productos ***
+  const allImgs = prods.flatMap(p => (p.images||[]));
+  if (force || !(state.cotizacion.images && state.cotizacion.images.length)){
+    state.cotizacion.images = allImgs.slice(); // clonar
+  }
+
+  // Cliente desde diseño si aplica
+  if (!state.cotizacion.cliente && state.diseno.cliente) state.cotizacion.cliente = state.diseno.cliente;
+  // Encargado por default si único
+  const encs = [...new Set(prods.map(p=> (p.encargado||'').trim()).filter(Boolean))];
+  if (!state.cotizacion.encargado && encs.length===1) state.cotizacion.encargado = encs[0];
+
+  saveDetail(row.id,state);
+  buildCotTable();
+  renderCotImages();
+  // reflejar inputs visibles
+  ['q_cliente','q_encargado'].forEach(id=> document.getElementById(id).value = state.cotizacion[id.slice(2)]||'');
+}
+
+function maybeAutoFillFromDesign(){
+  if (!state.cotizacion.autoFilled && (!state.cotizacion.items || !state.cotizacion.items.length)){
+    importFromDesign(true); // con true ahora también trae todas las imágenes
+    state.cotizacion.autoFilled = true;
+    saveDetail(row.id,state);
+  }
+}
+document.getElementById('q_importar').onclick = ()=> importFromDesign(true);
+
+// Images en cotización
+const qImgFile = document.getElementById('q_img_file');
+const qImgClear = document.getElementById('q_img_clear');
+const qImgGrid = document.getElementById('q_img_grid');
+function renderCotImages(){
+  qImgGrid.innerHTML = '';
+  (state.cotizacion.images||[]).forEach((src,idx)=>{
+    const wrap = document.createElement('div'); wrap.className='thumb';
+    const img = new Image(); img.src = src; wrap.appendChild(img);
+    const x = document.createElement('div'); x.className='x'; x.textContent='✕';
+    x.onclick = ()=>{ state.cotizacion.images.splice(idx,1); saveDetail(row.id,state); renderCotImages(); };
+    wrap.appendChild(x);
+    qImgGrid.appendChild(wrap);
+  });
+}
+qImgFile.onchange = async (e)=>{
+  const files = Array.from(e.target.files||[]);
+  for (const file of files){
+    await new Promise((res)=>{
+      const reader = new FileReader();
+      reader.onload = ()=>{ (state.cotizacion.images||(state.cotizacion.images=[])).push(reader.result); res(); };
+      reader.readAsDataURL(file);
+    });
+  }
+  saveDetail(row.id,state); renderCotImages();
+  qImgFile.value='';
+};
+qImgClear.onclick = ()=>{ state.cotizacion.images=[]; saveDetail(row.id,state); renderCotImages(); };
+
+buildCotTable(); renderCotImages();
+
+function openSync(){
+  document.getElementById('m_id').value = row.id || '';
+  document.getElementById('m_orden').value = row.orden || '';
+  document.getElementById('m_trabajo').value = row.trabajo || '';
+  document.getElementById('m_pct').value = Math.round(Number(row.avance||0)*100);
+  document.getElementById('m_inicio').value = (state.cotizacion.inicio||'').slice(0,10);
+  document.getElementById('m_dias').value = (state.cotizacion.vigencia||'');
+  document.getElementById('m_final').value = (state.cotizacion.fin||'').slice(0,10);
+  document.getElementById('m_entrega').value = '';
+  document.getElementById('m_resp').value = state.cotizacion.encargado||'';
+
+  const modal = document.getElementById('syncModal');
+  modal.style.display='flex'; modal.setAttribute('aria-hidden','false');
+
+  const mInicio = document.getElementById('m_inicio');
+  const mDias = document.getElementById('m_dias');
+  const mFinal = document.getElementById('m_final');
+  function recalc(){ if (mInicio.value!=='' && mDias.value!==''){ mFinal.value = addDays(mInicio.value, Number(mDias.value||0)); } }
+  mInicio.onchange = recalc;
+  mDias.oninput = recalc;
+}
+function closeSync(){ const modal=document.getElementById('syncModal'); modal.style.display='none'; modal.setAttribute('aria-hidden','true'); }
+document.getElementById('btnSync').onclick = openSync;
+document.getElementById('m_cancel').onclick = closeSync;
+
+document.getElementById('m_save').onclick = ()=>{
+  state.cotizacion.inicio = document.getElementById('m_inicio').value || '';
+  state.cotizacion.vigencia = document.getElementById('m_dias').value || '';
+  state.cotizacion.fin = document.getElementById('m_final').value || '';
+  state.cotizacion.encargado = document.getElementById('m_resp').value || '';
+  saveDetail(row.id,state);
+
+  const idxRows = (function(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY_IDX))||[] }catch(e){ return [] } })();
+  const updated = {
+    id: String(document.getElementById('m_id').value||row.id),
+    orden: document.getElementById('m_orden').value||'',
+    trabajo: document.getElementById('m_trabajo').value||'',
+    avance: (Math.min(100, Math.max(0, Number(document.getElementById('m_pct').value||0)))/100),
+    inicio: state.cotizacion.inicio || '',
+    dias_trabajo: (state.cotizacion.vigencia===''||state.cotizacion.vigencia==null) ? null : parseInt(state.cotizacion.vigencia,10),
+    finalizacion: state.cotizacion.fin || '',
+    entrega: document.getElementById('m_entrega').value||'',
+    responsable: state.cotizacion.encargado || '',
+    observaciones: document.getElementById('m_obs').value||'',
+  };
+  const i = idxRows.findIndex(r=> String(r.id)===String(updated.id));
+  if (i>=0) idxRows[i] = {...idxRows[i], ...updated}; else idxRows.push(updated);
+  try{ localStorage.setItem(STORAGE_KEY_IDX, JSON.stringify(idxRows)); }catch(e){}
+  toast('Datos enviados al índice');
+  closeSync();
+  localStorage.setItem('__ping__', Date.now().toString());
+};
+
+function save(){ saveDetail(row.id,state); toast('Guardado'); }
+document.getElementById('btnSave').onclick = save;
+</script>
+</body>
+</html>

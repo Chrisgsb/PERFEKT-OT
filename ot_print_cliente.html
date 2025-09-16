@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1" name="viewport"/>
+<title>Cotización — Formato de impresión</title>
+<style>
+  :root{ --text:#111827; --muted:#6b7280; --line:#e5e7eb; --accent:#111827; }
+  *{box-sizing:border-box}
+  body{font-family:ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", Arial; color:var(--text); margin:0; padding:24px; background:#fff}
+  .sheet{max-width:900px; margin:0 auto; border:1px solid var(--line); border-radius:12px; padding:22px}
+  header{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:8px}
+  .left h2{margin:0 0 6px 0; font-size:18px}
+  .field{margin:2px 0; font-size:14px}
+  .label{font-size:12px; color:var(--muted); display:block}
+  .right{display:flex; justify-content:flex-end; align-items:flex-start; gap:12px}
+  .right .meta{font-size:14px}
+  .right .meta div{margin:2px 0}
+  .logo{height:42px; border:1px solid #000; border-radius:8px; padding:4px}
+  table{width:100%; border-collapse:collapse; font-size:14px; margin:12px 0 6px}
+  th, td{border:1px solid var(--line); padding:8px; text-align:left; vertical-align:top}
+  th{background:#f9fafb; font-weight:600; font-size:12px; color:#374151}
+  td.num{text-align:right; font-variant-numeric:tabular-nums}
+  .totals{display:grid; grid-template-columns:1fr 300px; gap:16px; align-items:start; margin-top:8px}
+  .box{border:1px solid var(--line); border-radius:10px; padding:10px}
+  .mono{font-variant-numeric:tabular-nums}
+  footer{display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:24px}
+  .sign{border-top:1.5px solid #000; padding-top:6px; min-height:74px; position:relative}
+  .sign small{display:block; color:#374151; margin-top:2px}
+  .sign .firma-img{position:absolute; left:0; right:0; bottom:18px; margin:auto; max-height:46px; max-width:80%}
+  @media print{
+    body{padding:0}
+    .sheet{border:none; border-radius:0; padding:0; max-width:100%}
+    @page{size:A4; margin:14mm 14mm 16mm 14mm}
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+<header>
+<!-- Izquierda superior -->
+<div class="left">
+<h2 id="coti_nombre">Cotización</h2>
+<div class="field"><span class="label">Nombre del cliente</span><span id="cli_nombre">—</span></div>
+<div class="field"><span class="label">Fecha de entrega</span><span id="fecha_entrega">—</span></div>
+<div class="field"><span class="label">Método de pago</span><span id="metodo_pago">—</span></div>
+</div>
+<!-- Derecha superior -->
+<div class="right">
+<img alt="Logo" class="logo" src="perfekt_logo.png"/>
+<div class="meta">
+<div><span class="label">Responsable</span><span id="responsable">—</span></div>
+<div><span class="label">Observación</span><span id="observacion">—</span></div>
+</div>
+</div>
+</header>
+<!-- Detalles de la cotización (centro) -->
+<table id="tbl">
+<thead>
+<tr>
+<th style="width:26%">Trabajo</th>
+<th style="width:10%">Cant.</th>
+<th style="width:18%">N.º artículo</th>
+<th>Descripción</th>
+<th style="width:16%">P. unidad</th>
+<th style="width:14%">Desc.</th>
+<th style="width:16%">Total línea</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+<div class="totals">
+<div></div>
+<div class="box mono"><div><strong>Subtotal bruto:</strong> <span id="t_subb">Q0.00</span></div><div><strong>Descuento total:</strong> <span id="t_desc">Q0.00</span></div><hr style="border:none; border-top:1px solid var(--line); margin:8px 0"/><div><strong>Productos: </strong><span id="t_prod">Q0.00</span><span id="t_pct_prod" style="display:none"></span> </div><div><strong>Mano de obra: </strong><span id="t_labp">Q0.00</span><span id="t_pct_lab" style="display:none"></span> </div><hr style="border:none; border-top:1px solid var(--line); margin:8px 0"/><div style="font-size:18px"><strong>Precio de venta:</strong> <span id="t_tot">Q0.00</span></div></div>
+</div>
+<footer>
+<div>
+<div style="height:46px"></div>
+<div class="sign">
+<small>Firma del cliente</small>
+</div>
+</div>
+<div>
+<!-- Colocamos la imagen de firma de la empresa justo SOBRE la línea -->
+<div style="height:46px; position:relative">
+<!-- TODO: Reemplazá la constante FIRM_IMAGE_SRC en el script para insertar tu firma digital permanente -->
+<img class="firma-img" id="firmaEmpresa"/>
+</div>
+<div class="sign">
+<small>Firma y sello de la empresa</small>
+</div>
+</div>
+</footer>
+</div>
+<script>
+/* Carga desde el mismo storage de tu app (índice y detalle) */
+const STORAGE_KEY_IDX='junio_rows_seed';   // índice
+const LS_KEY='ot_costs_detail_v4';         // detalle por OT
+
+// >>> CONFIGURACIÓN: imagen permanente de la firma de la empresa <<<
+// Reemplazá FIRM_IMAGE_SRC con la ruta de tu firma (por ejemplo 'firma_empresa.png').
+const FIRM_IMAGE_SRC = ''; // <-- PONÉ AQUÍ tu firma fija (queda grabada en el código)
+if (FIRM_IMAGE_SRC) {
+  const img = document.getElementById('firmaEmpresa');
+  img.src = FIRM_IMAGE_SRC;
+}
+
+function fmtQ(n){ const v=Number(n||0); return 'Q'+v.toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2}); }
+function num(v){ const n=parseFloat(String(v).replace(/[^0-9.-]/g,'')); return isNaN(n)?0:n; }
+
+// Leer id
+const params = new URLSearchParams(location.hash.slice(1));
+const oid = params.get('id') || '';
+
+// Datos índice y detalle
+let idxRows=[];
+try{ idxRows = JSON.parse(localStorage.getItem(STORAGE_KEY_IDX)) || []; }catch(_){}
+const row = idxRows.find(r => String(r.id)===String(oid)) || {};
+
+let detailAll = {};
+try{ detailAll = JSON.parse(localStorage.getItem(LS_KEY)) || {}; }catch(_){}
+const detail = detailAll[oid] || {};
+
+// Encabezados
+document.getElementById('coti_nombre').textContent = row.trabajo || 'Cotización';
+document.getElementById('cli_nombre').textContent = (detail.cotizacion && detail.cotizacion.cliente) || '—';
+document.getElementById('fecha_entrega').textContent = (row.entrega || detail.cotizacion && detail.cotizacion.fin) || '—';
+document.getElementById('metodo_pago').textContent = (detail.cotizacion && detail.cotizacion.metodo) || '—';
+document.getElementById('responsable').textContent = row.responsable || (detail.cotizacion && detail.cotizacion.encargado) || '—';
+document.getElementById('observacion').textContent = row.observaciones || '—';
+
+
+// Tabla de detalles (sin mostrar utilidad). Primero calculamos valores base por línea.
+const tbody = document.querySelector('#tbl tbody');
+const items = (detail.cotizacion && detail.cotizacion.items) || [];
+
+// Datos base de líneas
+const baseLines = items.map(it => {
+  const qty   = num(it.cant||0);
+  const pu    = num(it.pu||0);
+  const bruto = qty * pu;
+  const desc  = num(it.desc||0);
+  const neto  = Math.max(0, bruto - desc);
+  return { it, qty, pu, bruto, desc, neto };
+});
+baseLines.forEach(()=>{}); // no-op to keep structure
+
+
+
+// Totales y distribución proporcional para ocultar utilidad a nivel de líneas.
+const subBruto = baseLines.reduce((s,ln)=> s + ln.bruto, 0);
+const descTotal = baseLines.reduce((s,ln)=> s + ln.desc, 0);
+const labor = num(detail.cotizacion && detail.cotizacion.labor || 0);
+const marginPct = num(detail.cotizacion && detail.cotizacion.marginPct || 0)/100;
+const netoProductos = Math.max(0, subBruto - descTotal);
+const base = netoProductos + labor;
+const precioVenta = (marginPct < 1) ? (base / (1 - marginPct)) : base;
+
+// Distribución entre Productos vs Mano de obra (a nivel total)
+const pctLabor = base > 0 ? (labor / base) : 0;
+const pctProd  = base > 0 ? (netoProductos / base) : 0;
+const montoLabor = precioVenta * pctLabor;
+const totalProductosDistribuido = precioVenta - montoLabor; // lo que se reparte entre líneas
+
+// Distribución por línea manteniendo proporciones de neto de cada línea
+const sumNeto = baseLines.reduce((s,ln)=> s + ln.neto, 0);
+const filas = [];
+let subBrutoDistrib = 0;
+let descDistrib = 0;
+
+baseLines.forEach((ln)=>{
+  let factorNeto = (sumNeto>0) ? (ln.neto / sumNeto) : 0;
+  const totalLineaDistrib = totalProductosDistribuido * factorNeto;
+
+  // Escalar P. unidad y Descuento manteniendo la relación original de la línea:
+  // s = totalDistrib / netoOriginal  =>  (qty*PU)*s - (Desc)*s = totalDistrib
+  let s = (ln.neto > 0) ? (totalLineaDistrib / ln.neto) : 0;
+
+  const puAdj   = ln.pu * s;
+  const brutoAdj= ln.bruto * s;
+  const descAdj = ln.desc * s;
+
+  subBrutoDistrib += brutoAdj;
+  descDistrib += descAdj;
+
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td>${ln.it.trabajo||''}</td>
+    <td class="num">${ln.qty.toLocaleString()}</td>
+    <td>${ln.it.numArt||''}</td>
+    <td>${ln.it.descTxt||''}</td>
+    <td class="num">${fmtQ(puAdj)}</td>
+    <td class="num">${fmtQ(descAdj)}</td>
+    <td class="num">${fmtQ(totalLineaDistrib)}</td>
+  `;
+  filas.push(tr);
+});
+
+// Pintar filas
+tbody.innerHTML='';
+filas.forEach(tr=> tbody.appendChild(tr));
+
+// Totales mostrados (todos ya distribuidos, sin utilidad explícita)
+document.getElementById('t_subb').textContent = fmtQ(subBrutoDistrib);
+document.getElementById('t_desc').textContent = fmtQ(descDistrib);
+document.getElementById('t_tot').textContent  = fmtQ(precioVenta);
+document.getElementById('t_labp').textContent = fmtQ(montoLabor);
+document.getElementById('t_prod').textContent = fmtQ(totalProductosDistribuido);
+document.getElementById('t_pct_lab').textContent = ` (${(pctLabor*100).toFixed(1)}%)`;
+document.getElementById('t_pct_prod').textContent = ` (${(pctProd*100).toFixed(1)}%)`;
+
+// Auto-abrir diálogo de impresión
+setTimeout(()=>window.print(), 200);
+
+</script>
+</body>
+</html>
